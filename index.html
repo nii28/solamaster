@@ -1,388 +1,287 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOLA Master - Absolute Stability</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --mana-blue: #4facfe;
-            --magic-gold: #ffd700;
-            --glass-bg: rgba(15, 23, 42, 0.97);
-        }
+import tkinter as tk
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
+import requests
+import json
+import os
+import re
 
-        body {
-            font-family: 'Quicksand', sans-serif;
-            margin: 0;
-            height: 100vh;
-            background: #0f172a no-repeat center center / cover;
-            color: #e2e8f0;
-            display: flex;
-            overflow: hidden; /* Ngăn scroll toàn trang */
-        }
+# Cấu hình giao diện mặc định
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
 
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(30px);
-            border: 1px solid rgba(255, 215, 0, 0.2);
-            border-radius: 24px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        }
+class SolaMaster(ctk.CTk):
+    def __init__(self):
+        super().__init__()
 
-        /* Sidebar Navigation */
-        aside {
-            width: 280px;
-            margin: 1rem;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .nav-link {
-            padding: 14px 20px;
-            border-radius: 14px;
-            cursor: pointer;
-            transition: 0.25s ease;
-            color: #94a3b8;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            width: 100%;
-            border: none;
-            background: transparent;
-            text-align: left;
-        }
-
-        .nav-link:hover { background: rgba(255,255,255,0.08); color: white; }
-        .nav-link.active {
-            background: linear-gradient(135deg, var(--mana-blue), #8e2de2);
-            color: white;
-            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3);
-        }
-
-        /* Main Content Container */
-        main {
-            flex-grow: 1;
-            margin: 1rem 1rem 1rem 0;
-            display: flex; /* Quan trọng: Dùng flex để con cái chiếm hết chỗ */
-            flex-direction: column;
-            min-width: 0; /* Fix flex shrink issue */
-        }
-
-        /* THE ULTIMATE FIX: Sections are NOT absolute. They exist in normal flow but only one is shown. */
-        .tab-content {
-            display: none; /* Mặc định ẩn hoàn toàn */
-            height: 100%;
-            width: 100%;
-            flex-direction: column;
-        }
-
-        .tab-content.active {
-            display: flex; /* Chỉ tab active mới chiếm diện tích */
-        }
-
-        .magic-input {
-            background: rgba(0,0,0,0.6) !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
-            color: #fff !important;
-            border-radius: 16px !important;
-            outline: none;
-            padding: 1rem;
-        }
-        .magic-input:focus { border-color: var(--mana-blue) !important; }
-
-        .btn-action {
-            background: var(--magic-gold);
-            color: #000;
-            font-weight: 900;
-            text-transform: uppercase;
-            border-radius: 14px;
-            transition: 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-        .btn-action:hover:not(:disabled) { transform: scale(1.01); filter: brightness(1.1); }
-        .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* Floating Controls */
-        .sys-control {
-            position: fixed;
-            bottom: 1.5rem;
-            right: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 1000;
-        }
-
-        .dot-btn {
-            width: 48px;
-            height: 48px;
-            background: var(--glass-bg);
-            border: 1px solid var(--magic-gold);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--magic-gold);
-            cursor: pointer;
-            transition: 0.3s;
-        }
-        .dot-btn:hover { background: var(--magic-gold); color: #000; }
-
-        .loading-screen {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-    </style>
-</head>
-<body>
-
-    <aside class="glass-panel p-6">
-        <div class="mb-10 text-center">
-            <h1 class="font-['Cinzel'] text-2xl font-black text-yellow-500">SOLA MASTER</h1>
-            <p class="text-[8px] tracking-[0.4em] text-mana-blue uppercase font-bold">Stable Core v5.0</p>
-        </div>
+        self.title("SOLA MASTER - Desktop Pro v5.0")
+        self.geometry("1100x700")
         
-        <nav class="flex flex-col gap-2">
-            <button onclick="changeTab('home')" id="nav-home" class="nav-link active"><span>🪄</span> Dịch Thuật</button>
-            <button onclick="changeTab('analyze')" id="nav-analyze" class="nav-link"><span>📜</span> Văn Học</button>
-            <button onclick="changeTab('epub')" id="nav-epub" class="nav-link"><span>📖</span> Cổ Thư EPUB</button>
-            <button onclick="changeTab('clean')" id="nav-clean" class="nav-link"><span>🧹</span> Hồ Thanh Tẩy</button>
-            <button onclick="changeTab('config')" id="nav-config" class="nav-link"><span>⚙️</span> Cấu Hình</button>
-        </nav>
-    </aside>
+        # State
+        self.api_key = self.load_config("api_key", "")
+        self.app_id = "sola_master_desktop"
+        
+        # Grid layout
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-    <main>
-        <!-- DỊCH THUẬT -->
-        <div id="tab-home" class="tab-content active">
-            <div class="glass-panel p-8 h-full flex flex-col gap-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="font-['Cinzel'] text-xl font-bold">Ma Pháp Dịch Thuật</h2>
-                    <div class="flex gap-2">
-                        <select id="home-src" class="bg-slate-800 text-white text-xs p-2 rounded-lg border border-mana-blue">
-                            <option value="Tiếng Nhật">Nhật</option><option value="Tiếng Trung">Trung</option><option value="Tiếng Anh">Anh</option><option value="Tự động">Tự động</option>
-                        </select>
-                        <select id="home-dest" class="bg-slate-800 text-white text-xs p-2 rounded-lg border border-mana-blue">
-                            <option value="Tiếng Việt">Việt</option><option value="Tiếng Anh">Anh</option>
-                        </select>
-                    </div>
-                </div>
-                <input id="home-prompt" type="text" placeholder="Bối cảnh (vídụ: Light Novel...)" class="magic-input w-full">
-                <div class="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
-                    <textarea id="home-input" class="magic-input resize-none" placeholder="Văn bản gốc..."></textarea>
-                    <div id="home-output" class="magic-input overflow-y-auto whitespace-pre-wrap bg-black/40"></div>
-                </div>
-                <button onclick="callAI('direct')" class="btn-action p-4 text-lg">Triển khai dịch thuật</button>
-            </div>
-        </div>
+        # Sidebar
+        self.sidebar = ctk.CTkFrame(self, width=240, corner_radius=0)
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        self.sidebar.grid_rowconfigure(6, weight=1)
 
-        <!-- VĂN HỌC -->
-        <div id="tab-analyze" class="tab-content">
-            <div class="glass-panel p-8 h-full flex flex-col gap-4">
-                <h2 class="font-['Cinzel'] text-xl font-bold text-yellow-500">Giải Mã Văn Chương</h2>
-                <div class="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
-                    <textarea id="analyze-input" class="magic-input resize-none" placeholder="Đoạn văn cần soi sáng..."></textarea>
-                    <div id="analyze-output" class="magic-input overflow-y-auto italic bg-black/40"></div>
-                </div>
-                <button onclick="callAI('analyze')" class="btn-action p-4 text-lg">Phân tích cảm xúc</button>
-            </div>
-        </div>
+        self.logo_label = ctk.CTkLabel(self.sidebar, text="SOLA MASTER", font=ctk.CTkFont(family="Cinzel", size=24, weight="bold"))
+        self.logo_label.grid(row=0, column=0, px=20, py=(20, 10))
+        
+        self.sub_logo = ctk.CTkLabel(self.sidebar, text="UNIVERSAL INTERFACE", text_color="#4facfe", font=ctk.CTkFont(size=10, weight="bold"))
+        self.sub_logo.grid(row=1, column=0, px=20, py=(0, 20))
 
-        <!-- CỔ THƯ -->
-        <div id="tab-epub" class="tab-content">
-            <div class="glass-panel p-8 h-full flex flex-col gap-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="font-['Cinzel'] text-xl font-bold">Thư Viện Cổ Thư</h2>
-                    <div class="flex gap-2">
-                        <select id="epub-src" class="bg-slate-800 text-white text-xs p-2 rounded-lg border border-mana-blue"><option value="Tiếng Nhật">Nhật</option><option value="Tiếng Trung">Trung</option></select>
-                        <select id="epub-dest" class="bg-slate-800 text-white text-xs p-2 rounded-lg border border-mana-blue"><option value="Tiếng Việt">Việt</option></select>
-                    </div>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('epub-file').click()" class="flex-1 p-3 bg-mana-blue/20 border border-mana-blue/40 rounded-xl text-[10px] font-bold uppercase">Nạp Cổ Thư (EPUB/TXT)</button>
-                    <input type="file" id="epub-file" class="hidden" accept=".epub,.txt" onchange="readMedia(this, 'epub-preview')">
-                    <input id="epub-prompt" type="text" placeholder="Bối cảnh dịch..." class="magic-input flex-[2] p-3">
-                </div>
-                <div id="epub-preview" class="flex-1 magic-input overflow-y-auto text-sm opacity-60">Dữ liệu sẽ hiển thị ở đây...</div>
-                <button onclick="callAI('epub')" class="btn-action p-4 text-lg">Dịch toàn chương</button>
-            </div>
-        </div>
+        # Navigation Buttons
+        self.btn_home = ctk.CTkButton(self.sidebar, text="🪄 Dịch Thuật", corner_radius=10, height=40, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=lambda: self.select_page("home"))
+        self.btn_home.grid(row=2, column=0, px=20, py=5)
 
-        <!-- THANH TẨY -->
-        <div id="tab-clean" class="tab-content">
-            <div class="glass-panel p-8 h-full flex flex-col gap-4">
-                <h2 class="font-['Cinzel'] text-xl font-bold">Hồ Thanh Tẩy</h2>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('clean-file').click()" class="px-6 py-2 bg-mana-blue/20 text-mana-blue border border-mana-blue/40 rounded-xl text-[10px] font-bold uppercase">Nạp File Rác</button>
-                    <input type="file" id="clean-file" class="hidden" accept=".epub,.txt" onchange="readMedia(this, 'clean-area')">
-                    <button onclick="document.getElementById('clean-area').value = ''" class="px-6 py-2 bg-red-500/10 text-red-400 rounded-xl text-[10px] font-bold">XÓA SẠCH</button>
-                </div>
-                <textarea id="clean-area" class="flex-1 magic-input resize-none" placeholder="Dán hoặc nạp văn bản để lọc..."></textarea>
-                <div class="grid grid-cols-4 gap-3">
-                    <button onclick="purify('ja')" class="btn-action py-3 text-xs">Lọc Nhật</button>
-                    <button onclick="purify('zh')" class="btn-action py-3 text-xs">Lọc Trung</button>
-                    <button onclick="purify('ko')" class="btn-action py-3 text-xs">Lọc Hàn</button>
-                    <button onclick="purify('en')" class="btn-action py-3 text-xs">Lọc Anh</button>
-                </div>
-            </div>
-        </div>
+        self.btn_analyze = ctk.CTkButton(self.sidebar, text="📜 Văn Học", corner_radius=10, height=40, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=lambda: self.select_page("analyze"))
+        self.btn_analyze.grid(row=3, column=0, px=20, py=5)
 
-        <!-- CẤU HÌNH -->
-        <div id="tab-config" class="tab-content">
-            <div class="glass-panel p-10 max-w-lg mx-auto mt-10 w-full">
-                <h2 class="font-['Cinzel'] text-2xl font-black text-center text-yellow-500 mb-8 uppercase">Phòng Ấn Ký</h2>
-                <div class="flex flex-col gap-6">
-                    <input type="password" id="api-key" class="magic-input text-center" placeholder="Dán Gemini API Key của bạn...">
-                    <button onclick="document.getElementById('bg-file').click()" class="w-full py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-mana-blue uppercase">Thay đổi kết giới (Background)</button>
-                    <input type="file" id="bg-file" class="hidden" accept="image/*" onchange="saveBg(this)">
-                </div>
-                <button onclick="saveKey()" class="btn-action w-full py-5 mt-10 text-lg">Lưu cấu hình</button>
-            </div>
-        </div>
-    </main>
+        self.btn_epub = ctk.CTkButton(self.sidebar, text="📖 Cổ Thư EPUB", corner_radius=10, height=40, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=lambda: self.select_page("epub"))
+        self.btn_epub.grid(row=4, column=0, px=20, py=5)
 
-    <!-- FLOATING BUTTONS -->
-    <div class="sys-control">
-        <button onclick="window.location.reload()" class="dot-btn" title="Làm mới"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M23 4v6h-6M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-        <button onclick="toggleFull()" class="dot-btn" title="Toàn màn hình"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
-    </div>
+        self.btn_purify = ctk.CTkButton(self.sidebar, text="🧹 Thanh Tẩy", corner_radius=10, height=40, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=lambda: self.select_page("purify"))
+        self.btn_purify.grid(row=5, column=0, px=20, py=5)
 
-    <!-- LOADING -->
-    <div id="loader" class="loading-screen">
-        <div class="text-mana-blue font-black tracking-[0.5em] animate-pulse">ĐANG KHAI TRIỂN MA PHÁP...</div>
-    </div>
+        # Bottom Sidebar Buttons
+        self.btn_settings = ctk.CTkButton(self.sidebar, text="⚙️ Cài Đặt", corner_radius=10, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=lambda: self.select_page("settings"))
+        self.btn_settings.grid(row=7, column=0, px=20, py=5)
 
-    <script>
-        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+        self.btn_refresh = ctk.CTkButton(self.sidebar, text="🔄 Làm Mới", corner_radius=10, fg_color="transparent", text_color="orange", anchor="w", command=self.refresh_app)
+        self.btn_refresh.grid(row=8, column=0, px=20, py=5)
 
-        function changeTab(id) {
-            // Loại bỏ class active ở các nút nav
-            document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
-            // Ẩn tất cả các tab content hoàn toàn
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            
-            // Kích hoạt tab được chọn
-            document.getElementById('nav-' + id).classList.add('active');
-            document.getElementById('tab-' + id).classList.add('active');
+        self.btn_fullscreen = ctk.CTkButton(self.sidebar, text="📺 Toàn Màn Hình", corner_radius=10, fg_color="transparent", text_color="cyan", anchor="w", command=self.toggle_fullscreen)
+        self.btn_fullscreen.grid(row=9, column=0, px=20, py=(5, 20))
+
+        # --- PAGES ---
+        self.container = ctk.CTkFrame(self, fg_color="transparent")
+        self.container.grid(row=0, column=1, sticky="nsew", px=20, py=20)
+        self.container.grid_columnconfigure(0, weight=1)
+        self.container.grid_rowconfigure(0, weight=1)
+
+        self.pages = {}
+        self.init_home()
+        self.init_analyze()
+        self.init_epub()
+        self.init_purify()
+        self.init_settings()
+
+        self.select_page("home")
+
+    def init_home(self):
+        page = ctk.CTkFrame(self.container, fg_color="transparent")
+        self.pages["home"] = page
+        
+        header = ctk.CTkLabel(page, text="MA PHÁP DỊCH THUẬT", font=ctk.CTkFont(family="Cinzel", size=20, weight="bold"))
+        header.pack(pady=10)
+
+        # Controls
+        ctrl_frame = ctk.CTkFrame(page, fg_color="transparent")
+        ctrl_frame.pack(fill="x", pady=5)
+        
+        self.home_src = ctk.CTkOptionMenu(ctrl_frame, values=["Tiếng Nhật", "Tiếng Trung", "Tiếng Anh", "Tự động"])
+        self.home_src.pack(side="left", px=5)
+        
+        self.home_dest = ctk.CTkOptionMenu(ctrl_frame, values=["Tiếng Việt", "Tiếng Anh"])
+        self.home_dest.pack(side="left", px=5)
+        
+        self.home_prompt = ctk.CTkEntry(ctrl_frame, placeholder_text="Bối cảnh (vídụ: Light Novel lạnh lùng...)", width=400)
+        self.home_prompt.pack(side="left", fill="x", expand=True, px=5)
+
+        # Text Area
+        text_frame = ctk.CTkFrame(page, fg_color="transparent")
+        text_frame.pack(fill="both", expand=True, pady=10)
+        text_frame.grid_columnconfigure((0,1), weight=1)
+        text_frame.grid_rowconfigure(0, weight=1)
+
+        self.home_input = ctk.CTkTextbox(text_frame, font=("Quicksand", 16))
+        self.home_input.grid(row=0, column=0, sticky="nsew", px=5)
+        
+        self.home_output = ctk.CTkTextbox(text_frame, font=("Quicksand", 16), text_color="#ffd700")
+        self.home_output.grid(row=0, column=1, sticky="nsew", px=5)
+
+        self.btn_run_home = ctk.CTkButton(page, text="KHAI TRIỂN MA PHÁP", height=50, fg_color="#ffd700", text_color="black", font=ctk.CTkFont(weight="bold"), command=lambda: self.run_gemini("home"))
+        self.btn_run_home.pack(fill="x", pady=10)
+
+    def init_analyze(self):
+        page = ctk.CTkFrame(self.container, fg_color="transparent")
+        self.pages["analyze"] = page
+        
+        ctk.CTkLabel(page, text="GIẢI MÃ VĂN CHƯƠNG", font=ctk.CTkFont(family="Cinzel", size=20, weight="bold", text_color="orange")).pack(pady=10)
+        
+        text_frame = ctk.CTkFrame(page, fg_color="transparent")
+        text_frame.pack(fill="both", expand=True, pady=10)
+        text_frame.grid_columnconfigure((0,1), weight=1)
+        text_frame.grid_rowconfigure(0, weight=1)
+
+        self.analyze_input = ctk.CTkTextbox(text_frame, font=("Quicksand", 16))
+        self.analyze_input.grid(row=0, column=0, sticky="nsew", px=5)
+        
+        self.analyze_output = ctk.CTkTextbox(text_frame, font=("Quicksand", 16), text_color="#4facfe", italic=True)
+        self.analyze_output.grid(row=0, column=1, sticky="nsew", px=5)
+
+        ctk.CTkButton(page, text="SOI SÁNG CẢM XÚC", height=50, fg_color="#4facfe", command=lambda: self.run_gemini("analyze")).pack(fill="x", pady=10)
+
+    def init_epub(self):
+        page = ctk.CTkFrame(self.container, fg_color="transparent")
+        self.pages["epub"] = page
+        
+        header_frame = ctk.CTkFrame(page, fg_color="transparent")
+        header_frame.pack(fill="x", pady=10)
+        ctk.CTkLabel(header_frame, text="THƯ VIỆN CỔ THƯ", font=ctk.CTkFont(family="Cinzel", size=20, weight="bold")).pack(side="left")
+        
+        self.epub_src = ctk.CTkOptionMenu(header_frame, values=["Tiếng Nhật", "Tiếng Trung"], width=100)
+        self.epub_src.pack(side="right", px=5)
+
+        ctrl = ctk.CTkFrame(page, fg_color="transparent")
+        ctrl.pack(fill="x", pady=5)
+        ctk.CTkButton(ctrl, text="NẠP EPUB/TXT", command=self.load_file_epub).pack(side="left", px=5)
+        self.epub_prompt = ctk.CTkEntry(ctrl, placeholder_text="Bối cảnh dịch...", width=500)
+        self.epub_prompt.pack(side="left", fill="x", expand=True, px=5)
+
+        self.epub_view = ctk.CTkTextbox(page, font=("Serif", 14), text_color="gray80")
+        self.epub_view.pack(fill="both", expand=True, pady=10)
+
+        ctk.CTkButton(page, text="DỊCH TOÀN CHƯƠNG", height=50, fg_color="#ffd700", text_color="black", command=lambda: self.run_gemini("epub")).pack(fill="x", pady=10)
+
+    def init_purify(self):
+        page = ctk.CTkFrame(self.container, fg_color="transparent")
+        self.pages["purify"] = page
+        
+        ctk.CTkLabel(page, text="HỒ THANH TẨY", font=ctk.CTkFont(family="Cinzel", size=20, weight="bold")).pack(pady=10)
+        
+        ctrl = ctk.CTkFrame(page, fg_color="transparent")
+        ctrl.pack(fill="x", pady=5)
+        ctk.CTkButton(ctrl, text="NẠP FILE RÁC", command=self.load_file_clean).pack(side="left", px=5)
+        ctk.CTkButton(ctrl, text="DỌN SẠCH", fg_color="red", command=lambda: self.clean_text.delete("1.0", "end")).pack(side="left", px=5)
+
+        self.clean_text = ctk.CTkTextbox(page, font=("Quicksand", 14))
+        self.clean_text.pack(fill="both", expand=True, pady=10)
+
+        btn_grid = ctk.CTkFrame(page, fg_color="transparent")
+        btn_grid.pack(fill="x")
+        ctk.CTkButton(btn_grid, text="Lọc Nhật", command=lambda: self.run_purify("ja")).pack(side="left", expand=True, px=5)
+        ctk.CTkButton(btn_grid, text="Lọc Trung", command=lambda: self.run_purify("zh")).pack(side="left", expand=True, px=5)
+        ctk.CTkButton(btn_grid, text="Lọc Hàn", command=lambda: self.run_purify("ko")).pack(side="left", expand=True, px=5)
+        ctk.CTkButton(btn_grid, text="Lọc Anh", command=lambda: self.run_purify("en")).pack(side="left", expand=True, px=5)
+
+    def init_settings(self):
+        page = ctk.CTkFrame(self.container, fg_color="transparent")
+        self.pages["settings"] = page
+        
+        ctk.CTkLabel(page, text="CẤU HÌNH HỆ THỐNG", font=ctk.CTkFont(family="Cinzel", size=24, weight="bold", text_color="#ffd700")).pack(pady=40)
+        
+        self.api_entry = ctk.CTkEntry(page, placeholder_text="Dán Gemini API Key tại đây...", width=500, height=50, show="*")
+        self.api_entry.pack(pady=10)
+        if self.api_key: self.api_entry.insert(0, self.api_key)
+
+        ctk.CTkButton(page, text="LƯU CẤU HÌNH", width=300, height=50, fg_color="#4facfe", command=self.save_settings).pack(pady=20)
+
+    # --- LOGIC ---
+    def select_page(self, name):
+        for page in self.pages.values():
+            page.pack_forget()
+        self.pages[name].pack(fill="both", expand=True)
+        
+        # Highlight btn
+        btns = {"home": self.btn_home, "analyze": self.btn_analyze, "epub": self.btn_epub, "purify": self.btn_purify, "settings": self.btn_settings}
+        for k, v in btns.items():
+            v.configure(fg_color="transparent" if k != name else ("gray75", "gray25"))
+
+    def load_config(self, key, default):
+        try:
+            if os.path.exists("config.json"):
+                with open("config.json", "r") as f:
+                    return json.load(f).get(key, default)
+        except: pass
+        return default
+
+    def save_settings(self):
+        self.api_key = self.api_entry.get().strip()
+        with open("config.json", "w") as f:
+            json.dump({"api_key": self.api_key}, f)
+        messagebox.showinfo("Thành công", "Đã lưu API Key vào hệ thống!")
+
+    def load_file_epub(self):
+        path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
+        if path:
+            with open(path, "r", encoding="utf-8") as f:
+                self.epub_view.delete("1.0", "end")
+                self.epub_view.insert("1.0", f.read())
+
+    def load_file_clean(self):
+        path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
+        if path:
+            with open(path, "r", encoding="utf-8") as f:
+                self.clean_text.delete("1.0", "end")
+                self.clean_text.insert("1.0", f.read())
+
+    def run_purify(self, lang):
+        text = self.clean_text.get("1.0", "end")
+        if lang == "ja": pattern = r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\s\d.,!?"\'()\-:;]'
+        elif lang == "zh": pattern = r'[\u4E00-\u9FFF\s\d.,!?"\'()\-:;]'
+        elif lang == "ko": pattern = r'[\uAC00-\uD7AF\s\d.,!?"\'()\-:;]'
+        else: pattern = r'[a-zA-Z\s\d.,!?"\'()\-:;]'
+        
+        cleaned = "".join(re.findall(pattern, text))
+        self.clean_text.delete("1.0", "end")
+        self.clean_text.insert("1.0", cleaned)
+
+    def run_gemini(self, mode):
+        if not self.api_key:
+            messagebox.showwarning("Thiếu Key", "Vui lòng vào Cài đặt để nhập API Key!")
+            return self.select_page("settings")
+
+        input_data = ""
+        sys_prompt = ""
+        output_widget = None
+
+        if mode == "home":
+            input_data = self.home_input.get("1.0", "end").strip()
+            output_widget = self.home_output
+            sys_prompt = f"Dịch từ {self.home_src.get()} sang {self.home_dest.get()}. Yêu cầu: {self.home_prompt.get()}. Không dùng dấu sao (*) trong kết quả."
+        elif mode == "analyze":
+            input_data = self.analyze_input.get("1.0", "end").strip()
+            output_widget = self.analyze_output
+            sys_prompt = "Phân tích tâm trạng nhân vật và dịch hoa mỹ sang tiếng Việt. Không dùng dấu sao (*)."
+        elif mode == "epub":
+            input_data = self.epub_view.get("1.0", "end").strip()
+            output_widget = self.epub_view
+            sys_prompt = f"Dịch nội dung chương từ {self.epub_src.get()} sang tiếng Việt. Bối cảnh: {self.epub_prompt.get()}. Không dùng dấu sao (*)."
+
+        if not input_data: return
+
+        # Request call
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key={self.api_key}"
+        headers = {'Content-Type': 'application/json'}
+        payload = {
+            "contents": [{"parts": [{"text": input_data[:20000]}]}],
+            "systemInstruction": {"parts": [{"text": sys_prompt}]}
         }
 
-        async function readMedia(input, targetId) {
-            const file = input.files[0];
-            if(!file) return;
-            const loader = document.getElementById('loader');
-            loader.style.display = 'flex';
-            
-            let text = "";
-            try {
-                if(file.name.endsWith('.epub')) {
-                    const zip = await JSZip.loadAsync(file);
-                    const files = Object.keys(zip.files).filter(f => f.match(/\.(xhtml|html)$/i)).sort();
-                    for(let f of files) {
-                        const h = await zip.files[f].async("text");
-                        text += new DOMParser().parseFromString(h, 'text/html').body.innerText + "\n\n";
-                    }
-                } else text = await file.text();
-                
-                const target = document.getElementById(targetId);
-                if(target.tagName === 'TEXTAREA') target.value = text;
-                else target.innerText = text;
-            } catch(e) { alert("Pháp khí nạp file lỗi!"); }
-            finally { loader.style.display = 'none'; }
-        }
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            data = response.json()
+            result = data['candidates'][0]['content']['parts'][0]['text']
+            output_widget.delete("1.0", "end")
+            output_widget.insert("1.0", result)
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể kết nối API: {str(e)}")
 
-        async function callAI(type) {
-            const key = localStorage.getItem('sola_v5_key');
-            if(!key) return changeTab('config');
-            
-            let input, output, system;
-            const loader = document.getElementById('loader');
+    def toggle_fullscreen(self):
+        is_full = self.attributes("-fullscreen")
+        self.attributes("-fullscreen", not is_full)
 
-            if(type === 'direct') {
-                input = document.getElementById('home-input').value;
-                output = document.getElementById('home-output');
-                system = `Dịch từ ${document.getElementById('home-src').value} sang ${document.getElementById('home-dest').value}. Phong cách: ${document.getElementById('home-prompt').value}. Không dùng *`;
-            } else if(type === 'analyze') {
-                input = document.getElementById('analyze-input').value;
-                output = document.getElementById('analyze-output');
-                system = "Phân tích tâm trạng và dịch hoa mỹ sang Tiếng Việt. Không dùng *";
-            } else {
-                input = document.getElementById('epub-preview').innerText;
-                output = document.getElementById('epub-preview');
-                system = `Dịch từ ${document.getElementById('epub-src').value} sang ${document.getElementById('epub-dest').value}. Yêu cầu: ${document.getElementById('epub-prompt').value}. Không dùng *`;
-            }
+    def refresh_app(self):
+        self.destroy()
+        os.system("python sola_master.py")
 
-            if(!input || input.length < 3) return;
-            
-            loader.style.display = 'flex';
-            try {
-                const r = await fetch(`${API_URL}?key=${key}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: input.substring(0, 20000) }] }],
-                        systemInstruction: { parts: [{ text: system }] }
-                    })
-                });
-                const d = await r.json();
-                const res = d.candidates[0].content.parts[0].text.replace(/\*/g, '');
-                if(output.tagName === 'TEXTAREA') output.value = res;
-                else output.innerText = res;
-            } catch(e) { alert("Kết nối linh giới API thất bại!"); }
-            finally { loader.style.display = 'none'; }
-        }
-
-        function purify(lang) {
-            const area = document.getElementById('clean-area');
-            let reg;
-            switch(lang) {
-                case 'ja': reg = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\s\d.,!?"'()\-:;]/g; break;
-                case 'zh': reg = /[\u4E00-\u9FFF\s\d.,!?"'()\-:;]/g; break;
-                case 'ko': reg = /[\uAC00-\uD7AF\s\d.,!?"'()\-:;]/g; break;
-                default: reg = /[a-zA-Z\s\d.,!?"'()\-:;]/g;
-            }
-            area.value = (area.value.match(reg) || []).join('');
-        }
-
-        function saveKey() {
-            localStorage.setItem('sola_v5_key', document.getElementById('api-key').value.trim());
-            alert("Đã khắc ghi API Key!");
-        }
-
-        function saveBg(input) {
-            const file = input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                document.body.style.backgroundImage = `url('${e.target.result}')`;
-                localStorage.setItem('sola_v5_bg', e.target.result);
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function toggleFull() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-        }
-
-        window.onload = () => {
-            const k = localStorage.getItem('sola_v5_key');
-            if(k) document.getElementById('api-key').value = k;
-            const bg = localStorage.getItem('sola_v5_bg');
-            if(bg) document.body.style.backgroundImage = `url('${bg}')`;
-        }
-    </script>
-</body>
-</html>
-
-    
+if __name__ == "__main__":
+    app = SolaMaster()
+    app.mainloop()

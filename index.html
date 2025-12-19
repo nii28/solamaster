@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOLA Master Pro v3 - Pháp Khí Dịch Thuật</title>
     
-    <!-- Libraries -->
+    <!-- TailwindCSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- JSZip (Xử lý EPUB) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
     <script>
@@ -40,29 +46,31 @@
             color: #e0e0e0;
             font-family: 'Inter', sans-serif;
             overflow: hidden;
-            height: 100vh;
         }
 
         .glass-panel {
             background: rgba(20, 20, 40, 0.75);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
         .glass-input {
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
+            transition: all 0.3s ease;
+        }
+        .glass-input:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
         }
 
-        .tab-content { display: none; height: 100%; }
-        .tab-content.active { display: flex; flex-direction: column; }
-
-        .nav-item.active {
-            background: linear-gradient(90deg, rgba(255,215,0,0.1), transparent);
-            border-left: 3px solid #ffd700;
-            color: #ffd700;
-        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: #4a4a6a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #ffd700; }
 
         .magic-spinner {
             border: 3px solid rgba(255, 255, 255, 0.1);
@@ -72,12 +80,18 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.3); border-radius: 10px; }
+
+        .tab-content { display: none; height: 100%; }
+        .tab-content.active { display: flex; flex-direction: column; }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(255,215,0,0.1), transparent);
+            border-left: 4px solid #ffd700;
+            color: #ffd700;
+        }
     </style>
 </head>
-<body class="flex flex-col">
+<body class="h-screen w-screen flex flex-col" id="app-body">
 
     <!-- Header -->
     <header class="glass-panel h-14 flex items-center justify-between px-6 z-20 shrink-0">
@@ -86,124 +100,158 @@
             <h1 class="font-serif text-xl font-bold tracking-wider">SOLA <span class="text-accent-cyan">MASTER PRO v3</span></h1>
         </div>
         <div class="flex items-center gap-4">
-            <div id="api-status" class="text-[10px] px-2 py-1 rounded border border-red-500/50 text-red-400">CHƯA KẾT NỐI</div>
-            <button onclick="location.reload()" class="hover:text-accent-cyan"><i class="fa-solid fa-rotate"></i></button>
+            <button onclick="toggleFullscreen()" class="hover:text-accent-cyan" title="Toàn màn hình"><i class="fa-solid fa-expand"></i></button>
+            <button onclick="resetApp()" class="hover:text-red-400" title="Reset"><i class="fa-solid fa-rotate-right"></i></button>
+            <div id="api-status" class="text-xs px-2 py-1 rounded bg-red-900/50 text-red-200 border border-red-500/30">
+                <i class="fa-solid fa-link-slash mr-1"></i> Chưa kết nối
+            </div>
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
-        
+    <div class="flex flex-1 overflow-hidden relative">
         <!-- Sidebar -->
-        <nav class="glass-panel w-16 md:w-64 flex flex-col py-4 z-10 shrink-0 border-r border-white/5">
-            <div class="flex-1 space-y-1">
-                <button onclick="switchTab('tab-translate')" id="btn-tab-translate" class="nav-item active w-full text-left px-4 py-3 flex items-center gap-3"><i class="fa-solid fa-wand-magic-sparkles w-6 text-center"></i><span class="hidden md:block">Ma Pháp Dịch</span></button>
-                <button onclick="switchTab('tab-epub')" id="btn-tab-epub" class="nav-item w-full text-left px-4 py-3 flex items-center gap-3"><i class="fa-solid fa-book-journal-whills w-6 text-center"></i><span class="hidden md:block">Thư Viện Cổ Thư</span></button>
-                <button onclick="switchTab('tab-analyze')" id="btn-tab-analyze" class="nav-item w-full text-left px-4 py-3 flex items-center gap-3"><i class="fa-solid fa-magnifying-glass-chart w-6 text-center"></i><span class="hidden md:block">Giải Mã</span></button>
-                <button onclick="switchTab('tab-cleaner')" id="btn-tab-cleaner" class="nav-item w-full text-left px-4 py-3 flex items-center gap-3"><i class="fa-solid fa-broom w-6 text-center"></i><span class="hidden md:block">Hồ Thanh Tẩy</span></button>
+        <nav class="glass-panel w-16 md:w-64 flex flex-col py-4 z-10 shrink-0 transition-all duration-300">
+            <div class="flex-1 space-y-2">
+                <button onclick="switchTab('tab-translate')" id="btn-tab-translate" class="nav-item active w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3"><i class="fa-solid fa-wand-magic-sparkles w-6 text-center text-lg"></i><span class="hidden md:block font-medium">Ma Pháp Dịch</span></button>
+                <button onclick="switchTab('tab-epub')" id="btn-tab-epub" class="nav-item w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3"><i class="fa-solid fa-book-journal-whills w-6 text-center text-lg"></i><span class="hidden md:block font-medium">Thư Viện Cổ Thư</span></button>
+                <button onclick="switchTab('tab-analyze')" id="btn-tab-analyze" class="nav-item w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3"><i class="fa-solid fa-magnifying-glass-chart w-6 text-center text-lg"></i><span class="hidden md:block font-medium">Giải Mã</span></button>
+                <button onclick="switchTab('tab-cleaner')" id="btn-tab-cleaner" class="nav-item w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3"><i class="fa-solid fa-broom w-6 text-center text-lg"></i><span class="hidden md:block font-medium">Hồ Thanh Tẩy</span></button>
             </div>
-            <button onclick="switchTab('tab-settings')" id="btn-tab-settings" class="nav-item w-full text-left px-4 py-3 flex items-center gap-3 mt-auto border-t border-white/10"><i class="fa-solid fa-gears w-6 text-center"></i><span class="hidden md:block">Cấu Hình</span></button>
+            <div class="mt-auto border-t border-white/10 pt-2">
+                <button onclick="switchTab('tab-settings')" id="btn-tab-settings" class="nav-item w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3"><i class="fa-solid fa-gears w-6 text-center text-lg"></i><span class="hidden md:block font-medium">Phòng Ấn Cấu Hình</span></button>
+            </div>
         </nav>
 
         <!-- Main Content -->
-        <main class="flex-1 p-4 relative overflow-hidden">
+        <main class="flex-1 overflow-hidden relative p-4">
             
-            <!-- TRANSLATE -->
-            <div id="tab-translate" class="tab-content active gap-4">
+            <!-- 1. TRANSLATE -->
+            <div id="tab-translate" class="tab-content active gap-4 h-full">
                 <div class="glass-panel p-4 rounded-lg flex flex-col gap-3 shrink-0">
                     <div class="flex justify-between items-center">
-                        <label class="text-accent-gold font-serif">Chế độ Dịch</label>
-                        <select id="trans-style" class="glass-input px-3 py-1 rounded text-sm w-48">
-                            <option value="Light Novel">Light Novel</option>
-                            <option value="Kiếm Hiệp / Tiên Hiệp">Kiếm Hiệp</option>
-                            <option value="Ngôn Tình">Ngôn Tình</option>
+                        <label class="text-accent-gold font-serif"><i class="fa-solid fa-hat-wizard mr-2"></i>Chế độ Linh Hồn</label>
+                        <select id="trans-style" class="glass-input px-3 py-1 rounded text-sm w-64">
+                            <option value="Tự nhiên, trôi chảy, văn phong Light Novel hiện đại">Light Novel Mặc Định</option>
+                            <option value="Hán Việt, cổ trang, kiếm hiệp, từ ngữ hào hùng">Kiếm Hiệp / Tiên Hiệp</option>
+                            <option value="Lãng mạn, nhẹ nhàng, sâu lắng, ngôn tình">Ngôn Tình / Lãng Mạn</option>
                         </select>
                     </div>
-                    <input type="text" id="custom-prompt" placeholder="Lời nhắc riêng cho AI..." class="glass-input w-full px-3 py-2 rounded text-sm">
+                    <input type="text" id="custom-prompt" placeholder="Hoặc nhập lời nhắc (VD: Dịch giọng lạnh lùng...)" class="glass-input w-full px-3 py-2 rounded text-sm">
                 </div>
                 <div class="flex-1 flex gap-4 min-h-0">
-                    <textarea id="trans-input" class="glass-input flex-1 p-4 rounded-lg resize-none font-mono text-sm" placeholder="Văn bản gốc..."></textarea>
-                    <div class="flex flex-col justify-center"><button onclick="executeMagic('translate')" class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center shadow-lg hover:scale-110 transition-transform"><i class="fa-solid fa-bolt"></i></button></div>
+                    <textarea id="trans-input" class="glass-input flex-1 p-4 rounded-lg resize-none font-mono text-sm" placeholder="Nhập văn bản gốc..."></textarea>
+                    <div class="flex flex-col justify-center gap-4">
+                        <button onclick="executeTranslate()" class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg flex items-center justify-center transition hover:scale-110"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
+                    </div>
                     <div class="flex-1 relative">
-                        <textarea id="trans-output" class="glass-input w-full h-full p-4 rounded-lg resize-none" readonly placeholder="Kết quả..."></textarea>
-                        <div id="loading-trans" class="absolute inset-0 bg-black/50 flex items-center justify-center hidden rounded-lg"><div class="magic-spinner"></div></div>
+                        <textarea id="trans-output" class="glass-input w-full h-full p-4 rounded-lg resize-none text-base" readonly placeholder="Bản dịch..."></textarea>
+                        <div id="loading-trans" class="absolute inset-0 bg-black/50 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center hidden"><div class="magic-spinner mb-2"></div><span class="text-xs text-accent-cyan">Đang dịch...</span></div>
                     </div>
                 </div>
             </div>
 
-            <!-- EPUB -->
-            <div id="tab-epub" class="tab-content gap-4">
+            <!-- 2. EPUB READER -->
+            <div id="tab-epub" class="tab-content gap-4 h-full">
                 <div class="glass-panel p-3 rounded-lg flex flex-wrap items-center gap-4 shrink-0">
-                    <label class="cursor-pointer bg-white/10 px-3 py-2 rounded text-xs font-bold border border-white/10">
-                        NẠP FILE <input type="file" id="file-upload" accept=".epub,.txt" class="hidden" onchange="handleFileUpload(this)">
+                    <label class="cursor-pointer bg-white/10 hover:bg-white/20 px-3 py-2 rounded transition flex items-center gap-2 text-sm border border-white/10">
+                        <i class="fa-solid fa-file-import text-accent-cyan"></i> Nạp (.epub/.txt)
+                        <input type="file" id="file-upload" accept=".epub,.txt" class="hidden" onchange="handleFileUpload(this)">
                     </label>
-                    <input type="text" id="epub-custom-prompt" class="glass-input flex-1 px-3 py-2 rounded text-sm" placeholder="Prompt dịch chương...">
-                    <button onclick="translateCurrentChapter()" class="px-3 py-2 bg-indigo-600 rounded text-xs font-bold">DỊCH CHƯƠNG</button>
-                    <button onclick="toggleAutoTranslate()" id="btn-auto-trans" class="px-3 py-2 bg-emerald-700 rounded text-xs font-bold">AUTO BULK</button>
+                    <div class="flex-1 min-w-[200px]">
+                        <input type="text" id="epub-custom-prompt" class="glass-input w-full px-3 py-2 rounded text-sm border border-indigo-500/30 focus:border-accent-gold" placeholder="Prompt dịch (VD: Giọng kiếm hiệp cổ điển...)">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="translateCurrentChapter()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm transition font-bold shadow-lg shadow-indigo-500/20"><i class="fa-solid fa-language mr-1"></i>Dịch Chương</button>
+                        <button onclick="toggleAutoTranslate()" id="btn-auto-trans" class="px-3 py-2 bg-emerald-700 hover:bg-emerald-600 rounded text-sm transition font-bold shadow-lg shadow-emerald-500/20"><i class="fa-solid fa-robot mr-1"></i>Auto (Bulk)</button>
+                    </div>
                 </div>
+
                 <div class="flex-1 flex gap-4 min-h-0 overflow-hidden">
-                    <div id="chapter-list" class="w-56 glass-panel overflow-y-auto p-2 text-xs space-y-1"></div>
-                    <div class="flex-1 flex flex-col gap-2">
-                        <div class="flex justify-between items-center text-accent-cyan px-2">
-                            <button onclick="navChapter(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-                            <span id="current-chapter-title" class="font-bold truncate">Tiêu đề</span>
-                            <button onclick="navChapter(1)"><i class="fa-solid fa-chevron-right"></i></button>
+                    <div class="w-64 glass-panel rounded-lg flex flex-col shrink-0">
+                        <div class="p-3 border-b border-white/10 font-bold text-center text-accent-gold text-sm uppercase">Mục Lục</div>
+                        <div id="chapter-list" class="flex-1 overflow-y-auto p-2 space-y-1 text-sm">
+                            <div class="text-center text-gray-500 mt-10 text-xs">Chưa có sách</div>
+                        </div>
+                    </div>
+                    <div class="flex-1 flex flex-col gap-2 min-w-0">
+                        <div class="flex justify-between items-center px-2">
+                            <button onclick="navChapter(-1)" class="text-gray-400 hover:text-white text-sm"><i class="fa-solid fa-chevron-left"></i> Trước</button>
+                            <span id="current-chapter-title" class="font-serif text-lg font-bold truncate px-4 text-accent-cyan">Tiêu đề chương</span>
+                            <button onclick="navChapter(1)" class="text-gray-400 hover:text-white text-sm">Sau <i class="fa-solid fa-chevron-right"></i></button>
                         </div>
                         <div class="flex-1 flex gap-2 min-h-0">
-                            <div id="reader-raw" class="flex-1 glass-panel p-6 overflow-y-auto text-sm whitespace-pre-wrap"></div>
-                            <div class="flex-1 glass-panel p-6 overflow-y-auto text-sm text-emerald-50 whitespace-pre-wrap relative">
-                                <div id="reader-trans"></div>
-                                <div id="bulk-status" class="absolute top-2 right-2 text-[10px] text-emerald-400 hidden animate-pulse font-bold">DỊCH TỰ ĐỘNG ĐANG CHẠY...</div>
-                                <div id="loading-reader" class="absolute inset-0 bg-black/60 flex items-center justify-center hidden"><div class="magic-spinner"></div></div>
+                            <div class="flex-1 glass-panel rounded-lg overflow-hidden flex flex-col">
+                                <div class="bg-black/20 px-3 py-1 text-xs text-gray-400 uppercase font-bold">Nguyên Tác</div>
+                                <div id="reader-raw" class="flex-1 overflow-y-auto p-6 text-lg leading-loose font-serif select-text whitespace-pre-wrap"></div>
+                            </div>
+                            <div class="flex-1 glass-panel rounded-lg overflow-hidden flex flex-col relative">
+                                <div class="bg-black/20 px-3 py-1 text-xs text-accent-cyan uppercase font-bold flex justify-between">
+                                    <span>Bản Dịch</span>
+                                    <span id="bulk-status" class="hidden text-emerald-400"><i class="fa-solid fa-gear fa-spin mr-1"></i> Đang tự động...</span>
+                                </div>
+                                <div id="reader-trans" class="flex-1 overflow-y-auto p-6 text-lg leading-loose font-sans select-text whitespace-pre-wrap text-emerald-50"></div>
+                                <div id="loading-reader" class="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center hidden z-10"><div class="magic-spinner"></div></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- ANALYZE -->
-            <div id="tab-analyze" class="tab-content gap-4">
-                <div class="glass-panel p-6 rounded-lg max-w-4xl mx-auto w-full flex flex-col h-full overflow-hidden">
-                    <h2 class="text-xl font-serif text-accent-gold mb-4 italic">Giải Mã Văn Chương</h2>
-                    <textarea id="analyze-input" class="glass-input w-full h-32 p-4 rounded-lg mb-4 resize-none" placeholder="Nhập từ khó hoặc đoạn văn cần giải nghĩa..."></textarea>
-                    <button onclick="executeMagic('analyze')" class="bg-purple-600 py-3 rounded-lg font-bold mb-4">PHÂN TÍCH LINH KHÍ</button>
-                    <div id="analyze-output" class="flex-1 bg-black/20 rounded-lg p-6 overflow-y-auto text-sm leading-relaxed hidden"></div>
-                    <div id="loading-analyze" class="hidden text-center py-10"><div class="magic-spinner mx-auto"></div></div>
+            <!-- 3. ANALYZE -->
+            <div id="tab-analyze" class="tab-content gap-4 h-full">
+                <div class="glass-panel p-6 rounded-lg flex-1 flex flex-col overflow-y-auto max-w-4xl mx-auto w-full">
+                    <h2 class="text-2xl font-serif text-accent-gold mb-4 border-b border-white/10 pb-2">Giải Mã Văn Chương</h2>
+                    <textarea id="analyze-input" class="glass-input w-full h-32 p-4 rounded-lg mb-4" placeholder="Nhập đoạn văn khó hiểu..."></textarea>
+                    <button onclick="executeAnalyze()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white py-3 rounded-lg font-bold shadow-lg mb-6"><i class="fa-solid fa-microscope mr-2"></i> Phân Tích</button>
+                    <div id="analyze-output" class="flex-1 bg-black/20 rounded-lg p-6 font-serif leading-relaxed hidden whitespace-pre-wrap"></div>
+                    <div id="loading-analyze" class="py-10 text-center hidden"><div class="magic-spinner mx-auto mb-2"></div><span class="text-gray-400">Đang tra cứu...</span></div>
                 </div>
             </div>
 
-            <!-- CLEANER -->
-            <div id="tab-cleaner" class="tab-content gap-4">
-                <div class="glass-panel p-4 rounded-lg flex flex-wrap gap-4 items-center justify-between">
-                    <div class="flex gap-2">
-                        <button onclick="cleanText('html')" class="px-3 py-1 bg-white/10 rounded text-xs">Xóa HTML</button>
-                        <button onclick="cleanText('zh')" class="px-3 py-1 bg-yellow-900/40 rounded text-xs">Lọc Trung</button>
-                        <button onclick="cleanText('space')" class="px-3 py-1 bg-blue-900/40 rounded text-xs">Cách dòng</button>
+            <!-- 4. CLEANER -->
+            <div id="tab-cleaner" class="tab-content gap-4 h-full">
+                <div class="flex flex-col h-full max-w-6xl mx-auto w-full">
+                    <div class="glass-panel p-4 rounded-lg mb-4 flex flex-wrap items-center gap-4 justify-between">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-xl font-serif text-accent-cyan mr-2">Bộ Lọc</h2>
+                            <label class="cursor-pointer bg-red-900/30 hover:bg-red-800/40 border border-red-500/30 px-3 py-1 rounded text-sm flex items-center gap-2 text-red-200 transition">
+                                <i class="fa-solid fa-file-arrow-up"></i> Nạp Rác (.epub/.txt)
+                                <input type="file" id="cleaner-upload" accept=".epub,.txt" class="hidden" onchange="handleCleanerFile(this)">
+                            </label>
+                            <span id="cleaner-status" class="text-xs text-gray-400 italic"></span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="cleanText('html')" class="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-sm border border-white/10">Xóa HTML</button>
+                            <button onclick="cleanText('zh')" class="px-3 py-1 bg-yellow-900/40 hover:bg-yellow-800/60 text-yellow-100 rounded text-sm border border-yellow-500/30">Lọc Trung</button>
+                            <button onclick="cleanText('space')" class="px-3 py-1 bg-blue-900/40 hover:bg-blue-800/60 text-blue-100 rounded text-sm border border-blue-500/30">Chuẩn Hóa</button>
+                        </div>
                     </div>
-                </div>
-                <div class="flex-1 flex gap-4 min-h-0">
-                    <textarea id="cleaner-input" class="glass-input flex-1 p-4 rounded-lg text-xs font-mono" placeholder="Đầu vào..."></textarea>
-                    <textarea id="cleaner-output" class="glass-input flex-1 p-4 rounded-lg text-xs font-mono" placeholder="Kết quả..."></textarea>
+                    <div class="flex-1 flex gap-4 min-h-0">
+                        <textarea id="cleaner-input" class="glass-input flex-1 p-4 rounded-lg resize-none font-mono text-xs" placeholder="Đầu vào..."></textarea>
+                        <textarea id="cleaner-output" class="glass-input flex-1 p-4 rounded-lg resize-none font-mono text-xs" placeholder="Kết quả..."></textarea>
+                    </div>
                 </div>
             </div>
 
-            <!-- SETTINGS -->
-            <div id="tab-settings" class="tab-content items-center justify-center">
-                <div class="glass-panel p-8 rounded-xl w-full max-w-sm space-y-6">
-                    <h2 class="text-xl font-bold text-center">CÀI ĐẶT</h2>
+            <!-- 5. SETTINGS -->
+            <div id="tab-settings" class="tab-content h-full items-center justify-center">
+                <div class="glass-panel p-8 rounded-xl w-full max-w-md space-y-6 relative">
+                    <h2 class="text-2xl font-serif font-bold text-center text-white">Cấu Hình Pháp Khí</h2>
                     <div class="space-y-2">
-                        <label class="text-xs text-accent-cyan block font-bold uppercase">Gemini API Key</label>
-                        <input type="password" id="api-key-input" class="glass-input w-full px-4 py-2 rounded border border-white/10" placeholder="AIzaSy...">
+                        <label class="block text-sm text-accent-cyan font-bold">Gemini API Key</label>
+                        <input type="password" id="api-key-input" class="glass-input w-full px-4 py-3 rounded border border-white/20" placeholder="AIzaSy...">
                     </div>
                     <div class="space-y-2">
-                        <label class="text-xs text-gray-300 block">Hình Nền</label>
+                        <label class="block text-sm text-gray-300">Ảnh Nền</label>
                         <input type="file" id="bg-file-input" accept="image/*" class="hidden" onchange="previewBackground(this)">
-                        <button onclick="document.getElementById('bg-file-input').click()" class="w-full py-2 bg-white/10 rounded text-xs">Tải Ảnh Lên</button>
-                        <button onclick="localStorage.removeItem('sola_bg'); location.reload();" class="w-full text-[10px] text-red-400 underline">Về mặc định</button>
+                        <label for="bg-file-input" class="cursor-pointer bg-white/10 hover:bg-white/20 px-4 py-2 rounded flex items-center justify-center border border-white/20 gap-2">
+                            <i class="fa-solid fa-image text-accent-gold"></i> Tải Ảnh Lên
+                        </label>
+                        <button onclick="removeBackground()" class="text-xs text-red-400 hover:text-red-300 underline block text-center w-full">Về mặc định</button>
                     </div>
-                    <button onclick="saveSettings()" class="w-full py-3 bg-accent-gold text-black font-bold rounded shadow-lg">LƯU THIẾT LẬP</button>
+                    <button onclick="saveSettings()" class="w-full py-3 bg-accent-gold text-black font-bold rounded hover:bg-yellow-400 shadow-lg"><i class="fa-solid fa-floppy-disk mr-2"></i> Lưu Cài Đặt</button>
                 </div>
             </div>
-
         </main>
     </div>
 
@@ -211,151 +259,51 @@
         const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
         let currentChapterIndex = 0;
         let isAutoTranslating = false;
-        let chaptersContent = [];
+        let chaptersContent = []; // {title, raw, trans}
+        let apiKey = "";
 
         window.onload = function() {
             loadSettings();
             switchTab('tab-translate');
+            updateApiStatus();
         };
 
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            const btn = document.getElementById('btn-' + tabId);
-            if(btn) btn.classList.add('active');
+            document.getElementById('btn-' + tabId).classList.add('active');
         }
 
-        // Settings Logic
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        }
+
+        function resetApp() {
+            if(confirm("Làm mới ứng dụng? Mọi dữ liệu tạm thời sẽ mất.")) window.location.reload();
+        }
+
+        // --- Settings & UI ---
         function saveSettings() {
-            const key = document.getElementById('api-key-input').value.trim();
-            if (key) localStorage.setItem('sola_key', key);
-            updateStatusDisplay();
-            alert("Đã lưu thành công!");
+            apiKey = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem('sola_api_key', apiKey);
+            updateApiStatus();
+            alert("Đã lưu cấu hình!");
         }
 
         function loadSettings() {
-            const key = localStorage.getItem('sola_key');
+            apiKey = localStorage.getItem('sola_api_key') || "";
+            document.getElementById('api-key-input').value = apiKey;
             const bg = localStorage.getItem('sola_bg');
-            if (key) document.getElementById('api-key-input').value = key;
-            if (bg) document.body.style.backgroundImage = `url('${bg}')`;
-            updateStatusDisplay();
+            if (bg) document.body.style.backgroundImage = `url(${bg})`;
         }
 
-        function updateStatusDisplay() {
-            const key = localStorage.getItem('sola_key');
-            const statusEl = document.getElementById('api-status');
-            if (key) {
-                statusEl.innerText = "ONLINE";
-                statusEl.className = "text-[10px] px-2 py-1 rounded border border-green-500/50 text-green-400";
+        function updateApiStatus() {
+            const status = document.getElementById('api-status');
+            if (apiKey) {
+                status.innerHTML = '<i class="fa-solid fa-link mr-1"></i> Đã kết nối';
+                status.className = "text-xs px-2 py-1 rounded bg-emerald-900/50 text-emerald-200 border border-emerald-500/30";
             } else {
-                statusEl.innerText = "CHƯA KẾT NỐI";
-                statusEl.className = "text-[10px] px-2 py-1 rounded border border-red-500/50 text-red-400";
-            }
-        }
-
-        function previewBackground(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    document.body.style.backgroundImage = `url('${e.target.result}')`;
-                    localStorage.setItem('sola_bg', e.target.result);
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        // Core API Call
-        async function callGemini(sys, txt) {
-            const key = localStorage.getItem('sola_key');
-            if (!key) { alert("Vui lòng nhập API Key trong phần Cấu Hình!"); return null; }
-            try {
-                const res = await fetch(`${API_URL}?key=${key}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: sys + "\n\n" + txt }] }] })
-                });
-                const data = await res.json();
-                return data.candidates[0].content.parts[0].text;
-            } catch (e) {
-                console.error(e);
-                return "Lỗi kết nối API hoặc Key không hợp lệ.";
-            }
-        }
-
-        async function executeMagic(mode) {
-            let input, output, loader, prompt;
-            if(mode === 'translate') {
-                input = document.getElementById('trans-input').value;
-                output = document.getElementById('trans-output');
-                loader = document.getElementById('loading-trans');
-                const style = document.getElementById('trans-style').value;
-                const custom = document.getElementById('custom-prompt').value;
-                prompt = `Dịch sang tiếng Việt. Văn phong: ${custom || style}. Hãy dịch tự nhiên nhất.`;
-            } else {
-                input = document.getElementById('analyze-input').value;
-                output = document.getElementById('analyze-output');
-                loader = document.getElementById('loading-analyze');
-                prompt = "Phân tích và giải nghĩa chi tiết các điển tích, từ Hán Việt hoặc các đoạn khó trong văn bản sau:";
-            }
-
-            if(!input) return;
-            loader.classList.remove('hidden');
-            const result = await callGemini(prompt, input);
-            loader.classList.add('hidden');
-            if(result) {
-                if(mode === 'translate') output.value = result;
-                else {
-                    output.innerHTML = result.replace(/\n/g, '<br>');
-                    output.classList.remove('hidden');
-                }
-            }
-        }
-
-        // EPUB & TXT Logic
-        async function handleFileUpload(input) {
-            const file = input.files[0]; if(!file) return;
-            chaptersContent = [];
-            if(file.name.endsWith('.txt')) {
-                const text = await file.text();
-                const parts = text.split(/(Chương \d+|Chapter \d+|Hồi \d+|Quyển \d+)/i);
-                for(let i=1; i<parts.length; i+=2) {
-                    chaptersContent.push({ title: parts[i], content: parts[i+1] });
-                }
-                if(chaptersContent.length === 0) chaptersContent.push({ title: "Toàn văn", content: text });
-            } else {
-                try {
-                    const zip = await JSZip.loadAsync(file);
-                    const fileEntries = [];
-                    zip.forEach((path, entry) => {
-                        if(path.match(/\.(html|xhtml|htm)$/i)) fileEntries.push(entry);
-                    });
-                    fileEntries.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-                    for(let entry of fileEntries) {
-                        const html = await entry.async("string");
-                        const doc = new DOMParser().parseFromString(html, 'text/html');
-                        chaptersContent.push({ 
-                            title: doc.querySelector('h1,h2,h3')?.innerText || entry.name, 
-                            content: doc.body.innerText 
-                        });
-                    }
-                } catch(e) { alert("Lỗi đọc file EPUB!"); }
-            }
-            renderChapters();
-            loadChapter(0);
-        }
-
-        function renderChapters() {
-            const list = document.getElementById('chapter-list');
-            list.innerHTML = chaptersContent.map((c, i) => `
-                <div onclick="loadChapter(${i})" class="p-2 hover:bg-white/10 rounded cursor-pointer truncate ${i===currentChapterIndex?'text-accent-gold bg-white/5 border-l-2 border-accent-gold':''}">
-                    ${c.title}
-                </div>
-            `).join('');
-        }
-
-        function loadChapter(i) {
-            if(i < 0 || i >= chaptersContent.length) return;
-            currentChapterIndex = i;
-            const c = chaptersContent[i];
-            document.
+                status.innerHTML = '<i class="fa-solid fa-link-slash mr-1"></i> Chưa kết nối';
+                status.className

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOLA Master - Toàn Diện</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --mana-blue: #4facfe;
+            --magic-gold: #ffd700;
+            --glass: rgba(15, 23, 42, 0.98);
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            margin: 0;
+            height: 100vh;
+            background: #0f172a no-repeat center center / cover;
+            color: #e2e8f0;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .glass {
+            background: var(--glass);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 24px;
+        }
+
+        /* Sidebar Navigation */
+        aside {
+            width: 320px;
+            margin: 1.5rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .nav-btn {
+            padding: 16px 24px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #94a3b8;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: left;
+        }
+
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+        .nav-btn.active {
+            background: linear-gradient(135deg, var(--mana-blue), #8e2de2);
+            color: white;
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        /* Fix Overlapping: Hide non-active sections entirely */
+        main {
+            flex: 1;
+            margin: 1.5rem 1.5rem 1.5rem 0;
+            position: relative;
+        }
+
+        .page-section {
+            display: none; /* Crucial: frees up click space */
+            height: 100%;
+            width: 100%;
+            animation: teleport 0.3s ease-out;
+        }
+
+        .page-section.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes teleport {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Magic UI Components */
+        .magic-input {
+            background: rgba(0,0,0,0.7) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            color: #f8fafc !important;
+            border-radius: 16px !important;
+            outline: none;
+        }
+        .magic-input:focus { border-color: var(--mana-blue) !important; }
+
+        .btn-gold {
+            background: var(--magic-gold);
+            color: #0f172a;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.2s;
+            border: none;
+        }
+        .btn-gold:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .lang-select {
+            background: #1e293b;
+            border: 1px solid var(--mana-blue);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Floating Controls */
+        .system-controls {
+            position: fixed;
+            bottom: 2.5rem;
+            right: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 2000;
+        }
+
+        .control-dot {
+            width: 50px;
+            height: 50px;
+            background: var(--glass);
+            border: 1px solid var(--magic-gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--magic-gold);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .control-dot:hover { background: var(--magic-gold); color: #000; }
+
+        .loader-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 5000;
+            border-radius: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="glass p-7">
+        <div class="mb-10 text-center">
+            <h1 class="font-['Cinzel'] text-2xl font-black text-yellow-500">SOLA MASTER</h1>
+            <p class="text-[9px] font-black text-mana-blue tracking-[0.3em] mt-1 uppercase">Eternal Edition</p>
+        </div>
+        
+        <nav class="flex flex-col gap-3">
+            <button onclick="switchTab('home')" class="nav-btn active" id="btn-home"><span>🪄</span> Dịch Thuật</button>
+            <button onclick="switchTab('analysis')" class="nav-btn" id="btn-analysis"><span>📜</span> Văn Học</button>
+            <button onclick="switchTab('file')" class="nav-btn" id="btn-file"><span>📖</span> Cổ Thư EPUB</button>
+            <button onclick="switchTab('clean')" class="nav-btn" id="btn-clean"><span>🧹</span> Thanh Tẩy</button>
+            <button onclick="switchTab('setup')" class="nav-btn" id="btn-setup"><span>⚙️</span> Cấu Hình</button>
+        </nav>
+
+        <div class="mt-auto p-4 bg-yellow-500/5 border-l-4 border-yellow-500 rounded-r-xl">
+            <p class="text-[10px] text-yellow-500 font-bold uppercase mb-1">Cổ vật linh thiêng:</p>
+            <p class="text-[11px] text-slate-400 italic">Sử dụng Gemini 2.0 Flash để đạt tốc độ dịch thuật ánh sáng.</p>
+        </div>
+    </aside>
+
+    <main>
+        <!-- 1. DỊCH THUẬT -->
+        <section id="sec-home" class="page-section active">
+            <div class="glass p-8 h-full flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-['Cinzel'] text-xl text-white font-bold">Ma Pháp Dịch Thuật</h2>
+                    <div class="flex gap-2">
+                        <select id="home-src" class="lang-select">
+                            <option value="Tiếng Nhật">Nhật (JA)</option>
+                            <option value="Tiếng Trung">Trung (ZH)</option>
+                            <option value="Tiếng Anh">Anh (EN)</option>
+                            <option value="Tiếng Hàn">Hàn (KO)</option>
+                            <option value="Tự động">Tự động</option>
+                        </select>
+                        <select id="home-dest" class="lang-select">
+                            <option value="Tiếng Việt">Việt (VI)</option>
+                            <option value="Tiếng Anh">Anh (EN)</option>
+                        </select>
+                    </div>
+                </div>
+                <input id="prompt" type="text" placeholder="Bối cảnh/Văn phong (ví dụ: Light Novel lạnh lùng, hài hước...)" class="magic-input p-4 w-full">
+                <div class="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
+                    <textarea id="input" class="magic-input p-5 resize-none text-lg" placeholder="Dán văn bản gốc vào đây..."></textarea>
+                    <div id="output" class="magic-input p-5 overflow-y-auto whitespace-pre-wrap text-lg bg-black/40 shadow-inner"></div>
+                </div>
+                <button id="btn-direct" onclick="callGemini('direct')" class="btn-gold py-5 rounded-2xl text-lg">Khai triển dịch thuật</button>
+            </div>
+        </section>
+
+        <!-- 2. VĂN HỌC -->
+        <section id="sec-analysis" class="page-section">
+            <div class="glass p-8 h-full flex flex-col gap-4">
+                <h2 class="font-['Cinzel'] text-xl text-yellow-500 font-bold">Phân Tích Văn Chương</h2>
+                <div class="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
+                    <textarea id="analysis-input" class="magic-input p-5 resize-none text-lg" placeholder="Đoạn văn cần soi sáng cảm xúc..."></textarea>
+                    <div id="analysis-output" class="magic-input p-5 overflow-y-auto italic text-lg bg-black/40"></div>
+                </div>
+                <button id="btn-analyze" onclick="callGemini('analyze')" class="btn-gold py-5 rounded-2xl text-lg">Giải mã văn chương</button>
+            </div>
+        </section>
+
+        <!-- 3. CỔ THƯ EPUB -->
+        <section id="sec-file" class="page-section">
+            <div class="glass p-8 h-full flex flex-col gap-5">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-['Cinzel'] text-xl text-white font-bold">Thư Viện Cổ Thư</h2>
+                    <div class="flex gap-2">
+                        <select id="epub-src" class="lang-select"><option value="Tiếng Nhật">Nhật</option><option value="Tiếng Trung">Trung</option><option value="Tiếng Anh">Anh</option></select>
+                        <select id="epub-dest" class="lang-select"><option value="Tiếng Việt">Việt</option></select>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1 bg-mana-blue/5 border-2 border-dashed border-mana-blue/20 rounded-2xl p-4 text-center cursor-pointer hover:bg-mana-blue/10 transition-all" onclick="document.getElementById('epub-f').click()">
+                        <input type="file" id="epub-f" class="hidden" accept=".epub,.txt" onchange="handleFile(this, 'preview')">
+                        <div class="text-2xl mb-1">📘</div>
+                        <p class="text-mana-blue font-bold text-[10px] uppercase">Nạp file EPUB/TXT</p>
+                    </div>
+                    <input id="epub-prompt" type="text" placeholder="Bối cảnh cho cổ thư này..." class="magic-input p-4 flex-[2]">
+                </div>
+                <div id="preview" class="flex-1 magic-input p-6 overflow-y-auto text-sm opacity-60 font-serif bg-black/20">Chưa có nội dung...</div>
+                <button id="btn-epub-translate" onclick="translateEpub()" class="btn-gold py-5 rounded-2xl text-lg">Dịch toàn chương</button>
+            </div>
+        </section>
+
+        <!-- 4. THANH TẨY (PURIFY) -->
+        <section id="sec-clean" class="page-section">
+            <div class="glass p-8 h-full flex flex-col gap-4 relative">
+                <div id="purify-loading" class="loader-overlay">
+                    <div class="text-mana-blue font-black tracking-widest animate-pulse">ĐANG NẠP DỮ LIỆU...</div>
+                </div>
+                <h2 class="font-['Cinzel'] text-xl text-white font-bold">Hồ Thanh Tẩy</h2>
+                <div class="flex gap-4 bg-black/20 p-3 rounded-xl border border-white/5">
+                    <button onclick="document.getElementById('clean-epub-f').click()" class="px-5 py-2.5 bg-mana-blue/20 text-mana-blue rounded-xl text-[10px] font-bold uppercase hover:bg-mana-blue/30">Nạp file EPUB/TXT</button>
+                    <input type="file" id="clean-epub-f" class="hidden" accept=".epub,.txt" onchange="handleFile(this, 'clean')">
+                    <button onclick="document.getElementById('clean-in').value = ''" class="px-5 py-2.5 bg-red-500/10 text-red-400 rounded-xl text-[10px] font-bold uppercase">Dọn hồ</button>
+                </div>
+                <textarea id="clean-in" class="flex-1 magic-input p-6 resize-none text-lg" placeholder="Dán văn bản thô hoặc nạp file để lọc rác ma pháp..."></textarea>
+                <div class="grid grid-cols-4 gap-4">
+                    <button onclick="runPurify('ja')" class="btn-gold py-4 rounded-xl text-xs">Lọc Nhật (JA)</button>
+                    <button onclick="runPurify('zh')" class="btn-gold py-4 rounded-xl text-xs">Lọc Trung (ZH)</button>
+                    <button onclick="runPurify('en')" class="btn-gold py-4 rounded-xl text-xs">Lọc Anh (EN)</button>
+                    <button onclick="runPurify('ko')" class="btn-gold py-4 rounded-xl text-xs">Lọc Hàn (KO)</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. CẤU HÌNH -->
+        <section id="sec-setup" class="page-section">
+            <div class="glass p-12 max-w-xl mx-auto mt-12 w-full shadow-2xl">
+                <h2 class="font-['Cinzel'] text-2xl text-yellow-500 font-black text-center mb-8 uppercase">Phòng Ấn Ký</h2>
+                <div class="space-y-6">
+                    <div>
+                        <label class="text-[10px] font-bold text-mana-blue uppercase ml-1">Gemini API Key</label>
+                        <input type="password" id="api-key" class="magic-input p-4 w-full text-center mt-1" placeholder="Dán khóa vạn năng tại đây...">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-mana-blue uppercase ml-1">Kết giới ảnh nền</label>
+                        <button onclick="document.getElementById('bg-f').click()" class="w-full py-4 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-mana-blue uppercase mt-1">Chọn ảnh nền từ máy</button>
+                        <input type="file" id="bg-f" class="hidden" accept="image/*" onchange="changeBg(this)">
+                    </div>
+                </div>
+                <button onclick="saveConfig()" class="btn-gold py-5 rounded-2xl text-xl w-full mt-10">Lưu trú linh hồn</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- SYSTEM CONTROLS -->
+    <div class="system-controls">
+        <button onclick="window.location.reload()" class="control-dot" title="Hồi sinh"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M23 4v6h-6M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+        <button onclick="toggleFS()" class="control-dot" title="Toàn màn hình"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+    </div>
+
+    <script>
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+
+        function switchTab(id) {
+            // Sửa lỗi xếp chồng bằng cách ẩn vật lý các tab không dùng
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+            
+            document.getElementById('btn-'+id).classList.add('active');
+            document.getElementById('sec-'+id).classList.add('active');
+        }
+
+        async function handleFile(input, target) {
+            const file = input.files[0];
+            if(!file) return;
+            const loader = document.getElementById('purify-loading');
+            if(target === 'clean') loader.style.display = 'flex';
+
+            let text = "";
+            try {
+                if(file.name.endsWith('.epub')) {
+                    const zip = await JSZip.loadAsync(file);
+                    const files = Object.keys(zip.files).filter(f => f.match(/\.(xhtml|html)$/i)).sort();
+                    for(let f of files) {
+                        const h = await zip.files[f].async("text");
+                        text += new DOMParser().parseFromString(h, 'text/html').body.innerText + "\n\n";
+                    }
+                } else text = await file.text();
+
+                if(target === 'preview') document.getElementById('preview').innerText = text;
+                if(target === 'clean') document.getElementById('clean-in').value = text;
+            } catch(e) { alert("Pháp thuật nạp file thất bại!"); }
+            finally { loader.style.display = 'none'; }
+        }
+
+        async function callGemini(type) {
+            const key = localStorage.getItem('sola_key');
+            if(!key) return switchTab('setup');
+            
+            const isHome = type === 'direct';
+            const btn = document.getElementById(isHome ? 'btn-direct' : 'btn-analyze');
+            const output = document.getElementById(isHome ? 'output' : 'analysis-output');
+            const input = document.getElementById(isHome ? 'input' : 'analysis-input').value.trim();
+            
+            if(!input) return;
+            btn.disabled = true;
+            output.innerText = "Hệ thống đang dịch chuyển dữ liệu qua hư không...";
+
+            const src = isHome ? document.getElementById('home-src').value : "Tự động";
+            const dest = isHome ? document.getElementById('home-dest').value : "Tiếng Việt";
+            const prompt = isHome ? document.getElementById('prompt').value : "";
+
+            const sysMessage = isHome 
+                ? `Bạn là một dịch giả Light Novel lão luyện. Dịch từ ${src} sang ${dest}. Phong cách: ${prompt || 'Văn chương trau chuốt, mượt mà'}. Tuyệt đối không dùng dấu * để nhấn mạnh.`
+                : `Phân tích sâu cảm xúc, ẩn ý và bối cảnh của đoạn văn sau, sau đó dịch sang Tiếng Việt một cách hoa mỹ nhất có thể.`;
+
+            try {
+                const response = await fetch(`${API_URL}?key=${key}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: input }] }],
+                        systemInstruction: { parts: [{ text: sysMessage }] }
+                    })
+                });
+                const data = await response.json();
+                output.innerText = data.candidates[0].content.parts[0].text.replace(/\*/g, '');
+            } catch(e) { output.innerText = "Kết giới API bị chặn hoặc lỗi!"; }
+            finally { btn.disabled = false; }
+        }
+
+        async function translateEpub() {
+            const key = localStorage.getItem('sola_key');
+            const box = document.getElementById('preview');
+            if(!key || box.innerText.length < 10) return alert("Thiếu API Key hoặc tệp cổ thư!");
+            
+            const btn = document.getElementById('btn-epub-translate');
+            btn.disabled = true;
+            box.innerText = "Đang triệu hồi tri thức AI cho cổ thư...";
+
+            const src = document.getElementById('epub-src').value;
+            const dest = document.getElementById('epub-dest').value;
+            const prompt = document.getElementById('epub-prompt').value;
+
+            try {
+                const response = await fetch(`${API_URL}?key=${key}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: box.innerText.substring(0, 15000) }] }],
+                        systemInstruction: { parts: [{ text: `Dịch văn bản cổ thư từ ${src} sang ${dest}. Yêu cầu: ${prompt}. Không sử dụng dấu * trong văn bản trả về.` }] }
+                    })
+                });
+                const data = await response.json();
+                box.innerText = data.candidates[0].content.parts[0].text.replace(/\*/g, '');
+            } catch(e) { alert("Giải mã cổ thư thất bại!"); }
+            finally { btn.disabled = false; }
+        }
+
+        function runPurify(lang) {
+            const area = document.getElementById('clean-in');
+            let reg;
+            switch(lang) {
+                case 'ja': reg = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\s\d.,!?"'()\-:;]/g; break;
+                case 'zh': reg = /[\u4E00-\u9FFF\s\d.,!?"'()\-:;]/g; break;
+                case 'ko': re
